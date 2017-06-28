@@ -315,13 +315,13 @@ class Board(object):
         move_history = []
 
         time_millis = lambda: 1000 * timeit.default_timer()
-        import logging
-        logging.basicConfig(level=logging.DEBUG, filename="my_log.log")
-        logging.debug("A new game is about to begin ")
+        # import logging
+        # logging.basicConfig(level=logging.DEBUG, filename="my_log.log")
+        # logging.debug("A new game is about to begin ")
         while True:
-            logging.debug("The new state is\n:{}".format(self.to_string()))
+            # logging.debug("The new state is\n:{}".format(self.to_string()))
             legal_player_moves = self.get_legal_moves()
-            logging.debug("legal moves :{}".format(legal_player_moves))
+            # logging.debug("legal moves :{}".format(legal_player_moves))
             game_copy = self.copy()
 
             move_start = time_millis()

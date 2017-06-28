@@ -422,9 +422,9 @@ class AlphaBetaPlayer(IsolationPlayer):
         maximum = float("-inf")
         for a in game.get_legal_moves():
             current_val = self.min_val(game.forecast_move(a), depth - 1, alpha, beta)
-            alpha = max(alpha, current_val)
+            #alpha = max(alpha, current_val)
             if current_val >= maximum:
                 maximum = current_val
                 best_possible_move = a
-                #alpha = maximum
+                alpha = maximum
         return best_possible_move
