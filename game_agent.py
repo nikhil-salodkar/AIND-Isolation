@@ -3,8 +3,7 @@ test your agent's strength against a set of known agents using tournament.py
 and include the results in your report.
 """
 import random
-#import logging
-#logging.basicConfig(level=logging.DEBUG,filename="my_log.log")
+
 
 class SearchTimeout(Exception):
     """Subclass base exception for code clarity. """
@@ -41,7 +40,17 @@ def custom_score(game, player):
     if game.is_winner(player):
         return float("inf")
 
-    return float(len(game.get_legal_moves(player)))
+    #at the first half of the game the player gives more points to positions which
+    #result in more options to play later and also restricts the opponent to some extent.
+    #But, after the middle game the player becomes more aggressive.
+    num_my_moves = len(game.get_legal_moves(player))
+    num_opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
+    total_positions = game.height * game.width
+    moves_occured = game.move_count
+    if moves_occured/total_positions <= 0.6:
+        return float(2*num_my_moves - num_opp_moves)
+    else:
+        return float(num_my_moves - 2*num_opp_moves)
 
 
 def custom_score_2(game, player):
@@ -72,16 +81,24 @@ def custom_score_2(game, player):
     if game.is_winner(player):
         return float("inf")
 
-    #if the player's legal moves remaining is greater than opponents move use this
-    #heuristic to chase after the opponent..
     num_my_moves = len(game.get_legal_moves(player))
     num_opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
-    if(num_my_moves > num_opp_moves):
-        return float(num_my_moves - (2 * num_opp_moves))
+
+    if num_my_moves == num_opp_moves:
+        # get the positional advantage.. The center positions are more valuable than edge positions.
+        center_y_pos = int(game.height / 2)
+        center_x_pos = int(game.width / 2)
+        curr_player_ypos, curr_player_xpos = game.get_player_location(player)
+        opp_player_ypos, opp_player_xpos = game.get_player_location(game.get_opponent(player))
+        curr_player_distance = abs(curr_player_ypos - center_y_pos) + abs(curr_player_xpos - center_x_pos)
+        opp_player_distance = abs(opp_player_ypos - center_y_pos) + abs(opp_player_xpos - center_x_pos)
+
+        # less the distance from center greater should be the value but positional advantage should not
+        # be greater than number of moves advantage, so it could be divided by 10 so that this advantage
+        # will not comflict with other nodes with number of moves advantage.
+        return float(opp_player_distance - curr_player_distance) / 10
     else:
-        return float(num_my_moves)
-
-
+        return float(num_my_moves - num_opp_moves)
 
 def custom_score_3(game, player):
     """Calculate the heuristic value of a game state from the point of view
@@ -105,17 +122,19 @@ def custom_score_3(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    # TODO: finish this function!
-    #raise NotImplementedError
     if game.is_loser(player):
         return float("-inf")
 
     if game.is_winner(player):
         return float("inf")
-
     num_my_moves = len(game.get_legal_moves(player))
     num_opp_moves = len(game.get_legal_moves(game.get_opponent(player)))
-    return float(num_my_moves - (2 * num_opp_moves))
+    moves_occured = game.move_count
+    total_positions = game.height * game.width
+    if(moves_occured/total_positions >= 0.6):
+        return float(num_my_moves - 2*num_opp_moves)
+    else:
+        return float(num_my_moves)
 
 
 class IsolationPlayer:
@@ -199,7 +218,6 @@ class MinimaxPlayer(IsolationPlayer):
         return best_move
 
     def max_val(self, game, depth):
-
         if self.time_left() < self.TIMER_THRESHOLD:
             raise SearchTimeout()
         if(depth == 0):
@@ -210,7 +228,6 @@ class MinimaxPlayer(IsolationPlayer):
         return node_value
 
     def min_val(self, game, depth):
-
         if self.time_left() < self.TIMER_THRESHOLD:
             raise SearchTimeout()
         if(depth == 0):
@@ -269,18 +286,6 @@ class MinimaxPlayer(IsolationPlayer):
                 maximum = current_val
                 best_possible_move = a
         return best_possible_move
-        # # TODO: finish this function!
-        # possible_actions = {}
-        # for a in game.get_legal_moves(self):
-        #     possible_actions[a] = self.min_value(game.forecast_move(a), depth - 1)
-        # maximum = float("-inf")
-        # best_possible_move = ()
-        # for key, value in possible_actions.items():
-        #     if(value >= maximum):
-        #         maximum = value
-        #         best_possible_move = key
-        # return best_possible_move
-
 
 class AlphaBetaPlayer(IsolationPlayer):
     """Game-playing agent that chooses a move using iterative deepening minimax
@@ -319,28 +324,17 @@ class AlphaBetaPlayer(IsolationPlayer):
             (-1, -1) if there are no available legal moves.
         """
         self.time_left = time_left
-
-        # TODO: finish this function!
         best_move = (-1, -1)
-        recent_best = best_move
+        legal_moves = game.get_legal_moves()
+        if legal_moves:
+            best_move = legal_moves[0]
         try:
-            # The try/except block will automatically catch the exception
-            # raised when the timer is about to expire.
-            s_depth = 1
-
+            depth = 1
             while True:
-                #logging.debug("The value of depth is: {}".format(s_depth))
-                curr_move = self.alphabeta(game, s_depth)
-                if curr_move != (-1, -1):
-                    best_move = curr_move
-                    recent_best = curr_move
-                else:
-                    best_move = recent_best
-                    break
-                s_depth += 1
-
+                best_move = self.alphabeta(game,depth)
+                depth += 1
         except SearchTimeout:
-             return best_move
+            return best_move
 
         # Return the best move from the last completed search iteration
         return best_move
@@ -351,7 +345,8 @@ class AlphaBetaPlayer(IsolationPlayer):
         if(depth == 0):
             return self.score(game, self)
         node_value = float("-inf")
-        for a in game.get_legal_moves():
+        legal_moves = game.get_legal_moves()
+        for a in legal_moves:
             node_value = max(node_value, self.min_val(game.forecast_move(a), depth - 1, alpha, beta))
             if(node_value >= beta):
                 return node_value
@@ -364,7 +359,8 @@ class AlphaBetaPlayer(IsolationPlayer):
         if(depth == 0):
             return self.score(game, self)
         node_value = float("inf")
-        for a in game.get_legal_moves():
+        legal_moves = game.get_legal_moves()
+        for a in legal_moves:
             node_value = min(node_value, self.max_val(game.forecast_move(a), depth - 1, alpha, beta))
             if(node_value <= alpha):
                 return node_value
@@ -420,11 +416,13 @@ class AlphaBetaPlayer(IsolationPlayer):
             raise SearchTimeout()
         best_possible_move = (-1, -1)
         maximum = float("-inf")
-        for a in game.get_legal_moves():
+        legal_moves = game.get_legal_moves()
+        for a in legal_moves:
             current_val = self.min_val(game.forecast_move(a), depth - 1, alpha, beta)
-            #alpha = max(alpha, current_val)
             if current_val >= maximum:
                 maximum = current_val
                 best_possible_move = a
                 alpha = maximum
+            if maximum >= beta:
+                return best_possible_move
         return best_possible_move
